@@ -4,7 +4,7 @@ import numpy as np
 import requests
 import pyfakewebcam
 
-def get_mask(frame, bodypix_url='http://localhost:9000'):
+def get_mask(frame, bodypix_url='http://bodypix:9000'):
     _, data = cv2.imencode(".jpg", frame)
     r = requests.post(
         url=bodypix_url,
@@ -41,8 +41,8 @@ def hologram_effect(img):
         if y % (bandLength+bandGap) < bandLength:
             holo[y,:,:] = holo[y,:,:] * np.random.uniform(0.1, 0.3)
     # add some ghosting
-    holo_blur = cv2.addWeighted(holo, 0.2, shift_image(holo.copy(), 5, 5), 0.8, 0)
-    holo_blur = cv2.addWeighted(holo_blur, 0.4, shift_image(holo.copy(), -5, -5), 0.6, 0)
+    holo_blur = cv2.addWeighted(holo, 0.2, shift_img(holo.copy(), 5, 5), 0.8, 0)
+    holo_blur = cv2.addWeighted(holo_blur, 0.4, shift_img(holo.copy(), -5, -5), 0.6, 0)
     # combine with the original color, oversaturated
     out = cv2.addWeighted(img, 0.5, holo_blur, 0.6, 0)
     return out
@@ -68,7 +68,7 @@ def get_frame(cap, background_scaled):
 
 # setup access to the *real* webcam
 cap = cv2.VideoCapture('/dev/video0')
-height, width = 720, 1280
+height, width = 480, 640
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 cap.set(cv2.CAP_PROP_FPS, 60)
