@@ -14,6 +14,7 @@ COPY requirements.txt /src/
 RUN pip install --no-cache-dir -r /src/requirements.txt
 # copy in the virtual background
 COPY background.jpg /data/
+COPY foreground.png /data/
 # run our fake camera script (with unbuffered output for easier debug)
 COPY fake.py /src/
 ENTRYPOINT python -u fake.py

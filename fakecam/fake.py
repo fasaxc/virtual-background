@@ -34,17 +34,17 @@ def shift_img(img, dx, dy):
 
 def hologram_effect(img):
     # add a blue tint
-    holo = cv2.applyColorMap(img, cv2.COLORMAP_WINTER)
+    holo = cv2.applyColorMap(img, cv2.COLORMAP_BONE)
     # add a halftone effect
     bandLength, bandGap = 2, 3
     for y in range(holo.shape[0]):
         if y % (bandLength+bandGap) < bandLength:
-            holo[y,:,:] = holo[y,:,:] * np.random.uniform(0.1, 0.3)
+            holo[y,:,:] = holo[y,:,:] * np.random.uniform(0.01, 0.3)
     # add some ghosting
     holo_blur = cv2.addWeighted(holo, 0.2, shift_img(holo.copy(), 5, 5), 0.8, 0)
     holo_blur = cv2.addWeighted(holo_blur, 0.4, shift_img(holo.copy(), -5, -5), 0.6, 0)
     # combine with the original color, oversaturated
-    out = cv2.addWeighted(img, 0.5, holo_blur, 0.6, 0)
+    out = cv2.addWeighted(img, 0.3, holo_blur, 1.2, 0)
     return out
 
 def get_frame(cap, background_scaled):
@@ -66,6 +66,40 @@ def get_frame(cap, background_scaled):
         frame[:,:,c] = frame[:,:,c]*mask + background_scaled[:,:,c]*inv_mask
     return frame
 
+def overlay_transparent(background, overlay, x, y):
+
+    background_width = background.shape[1]
+    background_height = background.shape[0]
+
+    if x >= background_width or y >= background_height:
+        return background
+
+    h, w = overlay.shape[0], overlay.shape[1]
+
+    if x + w > background_width:
+        w = background_width - x
+        overlay = overlay[:, :w]
+
+    if y + h > background_height:
+        h = background_height - y
+        overlay = overlay[:h]
+
+    if overlay.shape[2] < 4:
+        overlay = np.concatenate(
+            [
+                overlay,
+                np.ones((overlay.shape[0], overlay.shape[1], 1), dtype = overlay.dtype) * 255
+            ],
+            axis = 2,
+        )
+
+    overlay_image = overlay[..., :3]
+    mask = overlay[..., 3:] / 255.0
+
+    background[y:y+h, x:x+w] = (1.0 - mask) * background[y:y+h, x:x+w] + mask * overlay_image
+
+    return background
+
 # setup access to the *real* webcam
 cap = cv2.VideoCapture('/dev/video0')
 height, width = 480, 640
@@ -79,10 +113,13 @@ fake = pyfakewebcam.FakeWebcam('/dev/video20', width, height)
 # load the virtual background
 background = cv2.imread("/data/background.jpg")
 background_scaled = cv2.resize(background, (width, height))
+fg = cv2.imread("/data/foreground.png", cv2.IMREAD_UNCHANGED)
+fg_scaled = cv2.resize(fg, (width, height))
 
 # frames forever
 while True:
     frame = get_frame(cap, background_scaled)
+    frame = overlay_transparent(frame, fg_scaled, 0, 0)
     # fake webcam expects RGB
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     fake.schedule_frame(frame)
